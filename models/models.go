@@ -9,11 +9,33 @@ import (
 )
 
 type Task struct {
-	ID        int      `orm:"auto"`
-	Content   string   `orm:"size(255)"`
-	ProjectId *Project `orm:"rel(one)"`
+	// Beego ORM default identify Id field as auto increment
+	Id        int
+	Content   string
+	ProjectId int
 	CreatedAt time.Time
-	CreatedBy *User `orm:"rel(fk)"`
+	CreatedBy int
+}
+
+type User struct {
+	Id        int
+	Username  string
+	Password  string
+	Email     string
+	CreatedAt time.Time
+	RoleId    int
+}
+
+type Project struct {
+	Id        int
+	Name      string
+	CreatedAt time.Time
+	CreatedBy int
+}
+
+type Role struct {
+	Id   int
+	Name string
 }
 
 type TaskList struct {
@@ -22,45 +44,13 @@ type TaskList struct {
 	NumberOfTasks int
 }
 
-type User struct {
-	ID        int    `orm:"auto"`
-	Username  string `orm:"size(20)"`
-	Password  string `orm:"size(50)"`
-	Email     string
-	CreatedAt time.Time
-	RoleId    *Role `orm:"rel(fk)"`
-}
-
-type Project struct {
-	ID        int    `orm:"auto"`
-	Name      string `orm:"size(255)"`
-	CreatedAt time.Time
-	CreatedBy *User `orm:"rel(fk)"`
-}
-
-type Role struct {
-	ID   int
-	Name string
-}
-
-// TableName Renaming tables
-func (u *User) TableName() string {
-	return "users"
-}
-func (t *Task) TableName() string {
-	return "tasks"
-}
-func (p *Project) TableName() string {
-	return "projects"
-}
-func (r *Role) TableName() string {
-	return "roles"
-}
+type RoleCode int
+const (
+	ADMIN = 0
+	USER = 1
+)
 
 func init() {
-	// Register models
-	orm.RegisterModel(new(Task), new(User), new(Project), new(Role))
-
 	// Register database connection
 	err := orm.RegisterDataBase(
 		"default",
@@ -71,33 +61,150 @@ func init() {
 	}
 }
 
-func AddTask(t Task, p Project, u User) {
+// ReadTaskById Read a task by its id
+func ReadTaskById(id int) Task {
 	o := orm.NewOrm()
-	za, err := o.InsertOrUpdate(&u)
+	var task Task
+	err := o.Raw("SELECT id, content, project_id, created_at, created_by " +
+		"FROM public.tasks WHERE id = ?", id).QueryRow(&task)
 	if err != nil {
-		log.Fatal(za)
-		//log.Fatal("Error when insert/update User in models.AddTask")
+		log.Fatalln("Error in models.ReadTaskById()")
 	}
-	_, err = o.InsertOrUpdate(&p)
-	if err != nil {
-		log.Fatal("Error when insert/update Project in models.AddTask")
-	}
-	_, err = o.Insert(&t)
-	if err != nil {
-		log.Fatal("Error when insert Task in models.AddTask")
-	}
+	return task
 }
 
-func NewUser(id int, username string, password string, email string, createdAt time.Time) *User {
-	return &User{
-		ID:        id,
-		Username:  username,
-		Password:  password,
-		Email:     email,
-		CreatedAt: time.Now(),
+// ReadAllTasks Read all exists tasks in database from oldest to newest
+func ReadAllTasks() []Task {
+	o := orm.NewOrm()
+	var arrayTasks []Task
+	// Build query
+	_, err := o.Raw("SELECT id, content, project_id, created_at, created_by " +
+		"FROM public.tasks " +
+		"ORDER BY created_at ASC").QueryRows(&arrayTasks)
+	if err != nil {
+		log.Fatal("Error in models.ReadAllTasks()")
 	}
+	return arrayTasks
 }
 
-func NewTaskList() *TaskList {
-	return &TaskList{}
+// ReadTasksFromUser Read all tasks from a specific user
+func ReadTasksFromUser(u User) []Task {
+	o := orm.NewOrm()
+	var arrayTasks []Task
+	// Build query
+	_, err := o.Raw("SELECT id, content, project_id, created_at, created_by " +
+		"FROM public.tasks WHERE created_by = ?" +
+		"ORDER BY created_at ASC", u.Id).QueryRows(&arrayTasks)
+	if err != nil {
+		log.Fatal("Error in models.ReadAllTasks()")
+	}
+	return arrayTasks
+}
+
+// CreateTask Create new task into database
+func CreateTask(t Task) bool {
+	o := orm.NewOrm()
+	// Build query
+	_, err := o.Raw("INSERT INTO public.tasks (content, project_id, created_at, created_by) "+
+		"VALUES (?, ?, ?, ?)", t.Content, t.ProjectId, time.RFC3339, t.CreatedBy).Exec()
+	if err != nil {
+		log.Fatalln("Error in models.CreateTask()")
+		return false
+	}
+	return true
+}
+
+// UpdateTask Update an existing task
+func UpdateTask(t Task) bool {
+	o := orm.NewOrm()
+	// Build query
+	_, err := o.Raw("UPDATE public.tasks "+
+		"SET content = ?, project_id = ?, created_at = ?, created_by = ? "+
+		"WHERE id = ?",
+		t.Content, t.ProjectId, t.CreatedAt, t.CreatedBy, t.Id).Exec()
+	if err != nil {
+		log.Fatalln("Error in models.UpdateTask()")
+		return false
+	}
+	return true
+}
+
+// DeleteTask Delete an existing task
+func DeleteTask(t Task) bool {
+	o := orm.NewOrm()
+	// Build query
+	_, err := o.Raw("DELETE FROM public.tasks WHERE id = ?", t.Id).Exec()
+	if err != nil {
+		log.Fatalln("Error in models.DeleteTask()")
+		return false
+	}
+	return true
+}
+
+// ReadAllProjects Read all projects
+func ReadAllProjects() []Project {
+	o := orm.NewOrm()
+	var arrayProjects []Project
+	_, err := o.Raw("SELECT * FROM public.projects").QueryRows(&arrayProjects)
+	if err != nil {
+		log.Fatalln("Error in models.ReadAllProjects()")
+	}
+	return arrayProjects
+}
+
+// ReadProjectsByUserID Read all the projects owned by a specific user
+func ReadProjectsByUserID(uid int) []Project {
+	o := orm.NewOrm()
+	var arrayProjects []Project
+	_, err := o.Raw("SELECT * FROM public.projects WHERE created_by = ?", uid).QueryRows(&arrayProjects)
+	if err != nil {
+		log.Fatalln("Error in models.ReadAllProjects()")
+	}
+	return arrayProjects
+}
+
+// ReadProjectById Read a project with its specific id
+func ReadProjectById(pid int) Project {
+	o := orm.NewOrm()
+	var project Project
+	err := o.Raw("SELECT * FROM public.projects WHERE id = ?", pid).QueryRow(&project)
+	if err != nil {
+		log.Fatalln("Error in models.ReadProjectById()")
+	}
+	return project
+}
+
+// UpdateProject Update a project with its specific id
+func UpdateProject(p Project) bool {
+	o := orm.NewOrm()
+	_, err := o.Raw("UPDATE public.projects SET name = ?, created_at = ?, created_by = ? WHERE id = ?",
+		p.Name, p.CreatedAt, p.CreatedBy, p.Id).Exec()
+	if err != nil {
+		log.Fatalln("Error in models.UpdateProject()")
+		return false
+	}
+	return true
+}
+
+// DeleteProjectById Delete a specific project from its id
+func DeleteProjectById(id int) bool {
+	o := orm.NewOrm()
+	_, err := o.Raw("DELETE FROM public.projects WHERE id = ?", id).Exec()
+	if err != nil {
+		log.Fatalln("Error in models.DeleteProjectById()")
+		return false
+	}
+	return true
+}
+
+// CreateProject Create a new project
+func CreateProject(p Project) bool {
+	o := orm.NewOrm()
+	_, err := o.Raw("INSERT INTO public.projects (name, created_at, created_by) VALUES (?, ?, ?)",
+		p.Name, p.CreatedAt, p.CreatedBy).Exec()
+	if err != nil {
+		log.Fatalln("Error in models.CreateProject()")
+		return false
+	}
+	return true
 }
