@@ -9,7 +9,7 @@
     <link href="https://tododat.herokuapp.com" rel="canonical">
 
     <!-- Bootstrap core CSS -->
-    <link href="../static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         .bd-placeholder-img {
@@ -29,32 +29,84 @@
 </head>
 
 <body class="bg-light">
-<header class="py-5 text-center">
-    <img alt="Logo" class="d-block mx-auto mb-3" src="../static/img/logo.svg" width="96">
+<header class="py-4 text-center">
+    <img alt="Logo" class="d-block mx-auto mb-3" src="/static/img/logo.svg" width="96">
     <h1 class="h2">TodoDat</h1>
 </header>
 <main>
     <section class="container">
-        <div class="row justify-content-md-center">
-            <ul class="list-group">
-                <li class="list-group-item">
-                    <input aria-label="..." class="form-check-input me-1" type="checkbox" value="">
-                    A first task!
-                </li>
-              <li class="list-group-item">
-                <input aria-label="..." class="form-check-input me-1" type="checkbox" value="">
-
-              </li>
-            </ul>
-            <button class="btn btn-primary btn mt-5 col-lg-2" type="submit">Update</button>
-        </div>
+        <form action="done" method="post">
+            <div class="list-group">
+                {{range $task := .doingTasks}}
+                <label class="list-group-item">
+                    <input class="form-check-input me-1" name="taskid" type="checkbox" value="{{$task.Id}}">
+                    {{$task.Content}}
+                </label>
+                {{end}}
+            </div>
+            <div class="row g-3 justify-content-center mt-4">
+                <div class="btn-group">
+                    <div class="col">
+                    <button class="btn btn-primary" type="submit">
+                        Done
+                    </button>
+                        </div>
+                    <div class="col">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addmodal">
+                        Add
+                    </button>
+                        </div>
+                    <div class="col">
+                        <button class="btn btn-warning" formaction="edit" formmethod="post" type="submit">
+                            Edit
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
     </section>
+
+    <!-- Modal -->
+    <div class="modal fade" id="addmodal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Add new task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mt-2 row g-2 justify-content-center">
+                        <div class="col-8">
+                            <input aria-describedby="button-addon2" aria-label="What task?" class="form-control"
+                                   placeholder="What task?" type="text">
+                        </div>
+                        <div class="col-2">
+                            <input aria-describedby="button-addon2" aria-label="Due Date" class="form-control"
+                                   placeholder="Due Date" type="date">
+                        </div>
+                        <div class="col-1">
+                            <select class="form-control form-select" id="inputState">
+                                <option selected>Priority</option>
+                                <option>1</option>
+                                <option>2</option>
+                                <option>3</option>
+                                <option>4</option>
+                            </select>
+                        </div>
+                        <div class="col-1">
+                            <button class="me-1 col-12 btn btn-outline-secondary" id="button-addon2" type="submit">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </main>
 
-<footer class="my-5 pt-5 text-muted text-center text-small">
+<footer class="pt-5 text-muted text-center text-small">
     <p class="mb-1">&copy; 2021 Dat Tran</p>
 </footer>
-<script src="../static/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/bootstrap.bundle.min.js"></script>
 
 <script src="form-validation.js"></script>
 </body>

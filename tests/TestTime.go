@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"time"
+	"strings"
 )
 
 func main() {
-	fmt.Println(time.RFC3339)
+	fmt.Println(strings.Trim("      Ahahaha That ha            ", " "))
 }

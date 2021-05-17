@@ -13,8 +13,10 @@ type Task struct {
 	Id        int
 	Content   string
 	ProjectId int
-	CreatedAt time.Time
+	CreatedAt string
 	CreatedBy int
+	Status    string
+	Priority  int
 }
 
 type User struct {
@@ -45,9 +47,10 @@ type TaskList struct {
 }
 
 type RoleCode int
+
 const (
 	ADMIN = 0
-	USER = 1
+	USER  = 1
 )
 
 func init() {
@@ -65,7 +68,7 @@ func init() {
 func ReadTaskById(id int) Task {
 	o := orm.NewOrm()
 	var task Task
-	err := o.Raw("SELECT id, content, project_id, created_at, created_by " +
+	err := o.Raw("SELECT id, content, project_id, created_at, created_by, status, priority "+
 		"FROM public.tasks WHERE id = ?", id).QueryRow(&task)
 	if err != nil {
 		log.Fatalln("Error in models.ReadTaskById()")
@@ -78,9 +81,23 @@ func ReadAllTasks() []Task {
 	o := orm.NewOrm()
 	var arrayTasks []Task
 	// Build query
-	_, err := o.Raw("SELECT id, content, project_id, created_at, created_by " +
+	_, err := o.Raw("SELECT id, content, project_id, created_at, created_by, status, priority " +
 		"FROM public.tasks " +
 		"ORDER BY created_at ASC").QueryRows(&arrayTasks)
+	if err != nil {
+		log.Fatal("Error in models.ReadAllTasks()")
+	}
+	return arrayTasks
+}
+
+// ReadAllByStatus Read all tasks by status
+func ReadAllByStatus(status string) []Task {
+	o := orm.NewOrm()
+	var arrayTasks []Task
+	// Build query
+	_, err := o.Raw("SELECT id, content, project_id, created_at, created_by, status, priority " +
+		"FROM public.tasks WHERE status = ?" +
+		"ORDER BY created_at ASC", status).QueryRows(&arrayTasks)
 	if err != nil {
 		log.Fatal("Error in models.ReadAllTasks()")
 	}
@@ -92,8 +109,8 @@ func ReadTasksFromUser(u User) []Task {
 	o := orm.NewOrm()
 	var arrayTasks []Task
 	// Build query
-	_, err := o.Raw("SELECT id, content, project_id, created_at, created_by " +
-		"FROM public.tasks WHERE created_by = ?" +
+	_, err := o.Raw("SELECT id, content, project_id, created_at, created_by, status, priority "+
+		"FROM public.tasks WHERE created_by = ?"+
 		"ORDER BY created_at ASC", u.Id).QueryRows(&arrayTasks)
 	if err != nil {
 		log.Fatal("Error in models.ReadAllTasks()")
@@ -105,8 +122,9 @@ func ReadTasksFromUser(u User) []Task {
 func CreateTask(t Task) bool {
 	o := orm.NewOrm()
 	// Build query
-	_, err := o.Raw("INSERT INTO public.tasks (content, project_id, created_at, created_by) "+
-		"VALUES (?, ?, ?, ?)", t.Content, t.ProjectId, time.RFC3339, t.CreatedBy).Exec()
+	_, err := o.Raw("INSERT INTO public.tasks (content, project_id, created_at, created_by, status, priority) "+
+		"VALUES (?, ?, ?, ?, ?, ?)", t.Content, t.ProjectId, t.CreatedAt, t.CreatedBy, t.Status, t.Priority).Exec()
+	log.Println(t)
 	if err != nil {
 		log.Fatalln("Error in models.CreateTask()")
 		return false
@@ -119,11 +137,21 @@ func UpdateTask(t Task) bool {
 	o := orm.NewOrm()
 	// Build query
 	_, err := o.Raw("UPDATE public.tasks "+
-		"SET content = ?, project_id = ?, created_at = ?, created_by = ? "+
+		"SET content = ?, project_id = ?, created_at = ?, created_by = ?, status = ?, priority = ? "+
 		"WHERE id = ?",
-		t.Content, t.ProjectId, t.CreatedAt, t.CreatedBy, t.Id).Exec()
+		t.Content, t.ProjectId, t.CreatedAt, t.CreatedBy, t.Status, t.Priority, t.Id).Exec()
 	if err != nil {
 		log.Fatalln("Error in models.UpdateTask()")
+		return false
+	}
+	return true
+}
+
+func DoneTask(t Task) bool {
+	o := orm.NewOrm()
+	_, err := o.Raw("UPDATE public.tasks SET status = ? WHERE id = ?", t.Status, t.Id).Exec()
+	if err != nil {
+		log.Fatalln("Error in models.DoneTask()")
 		return false
 	}
 	return true
